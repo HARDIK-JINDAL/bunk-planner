@@ -4,7 +4,7 @@
 
 A single-file web app that figures out the **maximum number of classes you can skip** while keeping every subject above its minimum attendance requirement. No backend, no signup, no tracking. Just open and use.
 
-🔗 **[Live Demo](https://HARDIK-JINDAL.github.io/bunk-planner)** ← replace with your actual link
+🔗 **[Live Demo](https://HARDIK-JINDAL.github.io/bunk-planner)** 
 
 ---
 
