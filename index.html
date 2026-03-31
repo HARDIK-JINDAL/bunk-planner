@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bunk Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #111118; --surface2: #1a1a24;
+    --border: #2a2a3a; --border2: #3a3a50; --text: #e8e8f0; --muted: #6a6a88;
+    --accent: #7c6af7; --accent2: #a594f9;
+    --green: #22c55e; --green-bg: #052010; --green-border: #15532e;
+    --red: #ef4444; --red-bg: #200505; --red-border: #7f1d1d;
+    --amber: #f59e0b; --amber-bg: #1c1000; --amber-border: #78350f;
+    --blue: #3b82f6; --blue-bg: #030a1e; --blue-border: #1e3a8a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; }
+  .app { max-width: 900px; margin: 0 auto; padding: 24px 16px 60px; }
+  .header { text-align: center; margin-bottom: 40px; padding: 32px 0 24px; border-bottom: 1px solid var(--border); }
+  .header h1 { font-size: 32px; font-weight: 700; letter-spacing: -1px; }
+  .header h1 span { color: var(--accent2); }
+  .header p { color: var(--muted); font-size: 13px; margin-top: 6px; font-family: 'DM Mono', monospace; }
+  .steps { display: flex; margin-bottom: 32px; overflow-x: auto; }
+  .step-btn { flex: 1; min-width: 80px; padding: 10px 4px; background: var(--surface); border: 1px solid var(--border); border-right: none; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); cursor: pointer; transition: all .2s; text-align: center; }
+  .step-btn:first-child { border-radius: 8px 0 0 8px; }
+  .step-btn:last-child { border-radius: 0 8px 8px 0; border-right: 1px solid var(--border); }
+  .step-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+  .step-btn.done { background: var(--surface2); border-color: var(--green-border); color: var(--green); }
+  .step-btn span { display: block; font-size: 14px; margin-bottom: 2px; }
+  .panel { display: none; animation: fadeIn .25s ease; }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .panel-title { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+  .panel-sub { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 24px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--accent2); margin-bottom: 14px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .05em; }
+  label { display: block; font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+  input[type=text], input[type=number], select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px; padding: 9px 12px;
+    outline: none; transition: border-color .2s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+  .cols3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .cols4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+
+  .subj-list { display: flex; flex-direction: column; gap: 10px; }
+  .subj-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .subj-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .subj-name-display { font-size: 14px; font-weight: 600; }
+  .subj-type-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-family: 'DM Mono', monospace; }
+  .badge-T { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border); }
+  .badge-P { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+  .remove-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; padding: 0 4px; }
+  .remove-btn:hover { color: var(--red); }
+  .margin-bar-wrap { height: 6px; background: var(--border); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .margin-bar { height: 100%; border-radius: 3px; }
+  .subj-stats { display: flex; justify-content: space-between; margin-top: 6px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  .stat-num-label { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; margin-bottom: 3px; }
+  .stat-num-val { font-family: 'DM Mono', monospace; font-size: 16px; font-weight: 600; }
+  .margin-info { margin-top: 8px; padding: 8px 12px; border-radius: 8px; font-family: 'DM Mono', monospace; font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
+  .mi-safe   { background: var(--green-bg); border: 1px solid var(--green-border); }
+  .mi-warn   { background: var(--amber-bg); border: 1px solid var(--amber-border); }
+  .mi-danger { background: var(--red-bg);   border: 1px solid var(--red-border); }
+
+  .tt-simple { display: flex; flex-direction: column; gap: 12px; }
+  .tt-day-row { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .tt-day-heading { font-size: 13px; font-weight: 600; color: var(--accent2); font-family: 'DM Mono', monospace; margin-bottom: 12px; }
+  .tt-subj-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .tt-subj-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .tt-subj-name { font-size: 13px; font-family: 'DM Mono', monospace; }
+  .tt-hrs-input { width: 64px !important; text-align: center; font-size: 16px; font-weight: 700; color: var(--accent2) !important; }
+
+  .setup-grid { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: start; margin-bottom: 16px; }
+  .big-num-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .big-num-label { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .04em; text-align: center; }
+  .big-num-input { width: 80px !important; font-size: 30px !important; font-weight: 700 !important; text-align: center !important; color: var(--accent2) !important; border: 2px solid var(--accent) !important; border-radius: 10px !important; padding: 10px 4px !important; }
+  .hol-section label { margin-bottom: 8px; }
+  .hol-row { display: flex; gap: 8px; align-items: center; }
+  .hol-row input { width: 130px; }
+  .hchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; min-height: 22px; }
+  .hchip { background: var(--red-bg); border: 1px solid var(--red-border); color: var(--red); font-family: 'DM Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 20px; display: flex; align-items: center; gap: 6px; }
+  .hchip-x { background: none; border: none; color: var(--red); cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
+  .autofill-btn { width: 100%; padding: 14px; background: var(--accent); border: none; border-radius: 10px; color: #fff; font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 16px; letter-spacing: .02em; transition: all .2s; }
+  .autofill-btn:hover { background: var(--accent2); transform: translateY(-1px); }
+  .autofill-status { margin-top: 8px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--muted); text-align: center; min-height: 16px; }
+
+  .cal-month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-month-nav h3 { font-size: 15px; font-weight: 600; }
+  .cal-nav-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 5px 14px; cursor: pointer; font-size: 16px; }
+  .cal-nav-btn:hover { border-color: var(--accent); }
+  .cal-grid-wrap { overflow-x: auto; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-head { text-align: center; font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; padding: 4px 2px; }
+  .cal-cell { min-height: 58px; border-radius: 8px; padding: 6px; border: 1px solid var(--border); background: var(--surface2); font-size: 11px; transition: border-color .15s; position: relative; overflow: hidden; }
+  .cal-cell.empty { background: transparent; border-color: transparent; }
+  .cal-cell.weekend { opacity: .3; pointer-events: none; }
+  .cal-cell.is-hol { opacity: .4; border-style: dashed; pointer-events: none; }
+  .cal-cell.clickable { cursor: pointer; }
+  .cal-cell.clickable:hover { border-color: var(--accent2); }
+  .cdate { font-size: 13px; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .csub  { font-size: 8px; color: var(--muted); margin-top: 2px; }
+  .cbadge{ font-size: 9px; font-weight: 600; margin-top: 3px; display: block; font-family: 'DM Mono', monospace; }
+  .big-order { font-size: 20px; font-weight: 700; color: var(--accent2); text-align: center; margin-top: 4px; font-family: 'DM Mono', monospace; }
+  .cal-cell.has-order { border-color: var(--accent); background: #14102a; }
+  .cal-cell.attending { background: var(--blue-bg); border-color: var(--blue); }
+  .cal-cell.attending .cdate { color: var(--blue); }
+  .cal-cell.res-go   { background: var(--blue-bg);  border-color: var(--blue-border); }
+  .cal-cell.res-go   .cdate { color: var(--blue); }
+  .cal-cell.res-bunk { background: var(--green-bg); border-color: var(--green-border); }
+  .cal-cell.res-bunk .cdate { color: var(--green); }
+  .cal-cell.res-must { background: var(--red-bg);   border-color: var(--red-border); }
+  .cal-cell.res-must .cdate { color: var(--red); }
+  .cal-cell.res-risky{ background: var(--amber-bg); border-color: var(--amber-border); }
+  .cal-cell.res-risky .cdate { color: var(--amber); }
+  .cal-tags { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 3px; }
+  .ctag { font-size: 7px; padding: 1px 4px; border-radius: 3px; font-family: 'DM Mono', monospace; font-weight: 600; }
+  .ctag-go   { background: var(--blue-border);  color: #93c5fd; }
+  .ctag-ok   { background: #1a2a1a; color: #4ade80; }
+  .ctag-warn { background: var(--amber-border); color: #fcd34d; }
+  .ctag-must { background: var(--red-border);   color: #fca5a5; }
+
+  .order-overlay { position: absolute; inset: 0; background: rgba(10,10,15,.94); border-radius: 7px; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+  .order-overlay input { width: 46px; font-size: 24px; font-weight: 700; text-align: center; background: var(--surface2); border: 2px solid var(--accent2); border-radius: 8px; color: var(--accent2); padding: 4px 2px; font-family: 'DM Mono', monospace; outline: none; }
+  .order-overlay .ov-hint { font-size: 8px; color: var(--muted); font-family: 'DM Mono', monospace; text-align: center; line-height: 1.4; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; transition: all .2s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+  .btn-ghost { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent2); }
+  .btn-sm { padding: 7px 14px; font-size: 12px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .sum-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .sum-card .sc-label { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; }
+  .sum-card .sc-val { font-size: 22px; font-weight: 700; margin: 4px 0 2px; }
+  .sum-card .sc-sub { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .result-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .result-table th { text-align: left; padding: 8px 10px; font-size: 10px; font-family: 'DM Mono', monospace; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .result-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .result-table tr:last-child td { border-bottom: none; }
+  .result-table td:not(:first-child) { font-family: 'DM Mono', monospace; font-size: 11px; text-align: center; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+  .leg-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .leg-dot { width: 10px; height: 10px; border-radius: 3px; }
+  .section-label { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+  .empty-state { text-align: center; padding: 30px; color: var(--muted); font-size: 13px; font-family: 'DM Mono', monospace; }
+  .tip { padding: 10px 14px; border-radius: 8px; font-size: 11px; font-family: 'DM Mono', monospace; margin-bottom: 12px; background: var(--blue-bg); border: 1px solid var(--blue-border); color: #93c5fd; }
+  .opt-banner { padding: 14px 18px; border-radius: 10px; font-size: 12px; font-family: 'DM Mono', monospace; margin-bottom: 16px; background: #0a1a0a; border: 1px solid var(--green-border); color: var(--green); line-height: 1.7; }
+  .opt-banner strong { color: #4ade80; font-size: 14px; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>bunk<span>.</span>planner</h1>
+    <p>// attendance optimizer — skip smart, not random</p>
+  </div>
+
+  <div class="steps">
+    <button class="step-btn active" onclick="goStep(0)"><span>01</span>subjects</button>
+    <button class="step-btn" onclick="goStep(1)"><span>02</span>timetable</button>
+    <button class="step-btn" onclick="goStep(2)"><span>03</span>day order</button>
+    <button class="step-btn" onclick="goStep(3)"><span>04</span>attendance</button>
+    <button class="step-btn" onclick="goStep(4)"><span>05</span>results</button>
+  </div>
+
+  <!-- STEP 0 -->
+  <div class="panel active" id="panel-0">
+    <div class="panel-title">Your Subjects</div>
+    <div class="panel-sub">// add all subjects with current attendance data</div>
+    <div class="card">
+      <div class="card-title">Add Subject</div>
+      <div class="cols3">
+        <div><label>Subject Name</label><input type="text" id="new-name" placeholder="e.g. DBMS" /></div>
+        <div><label>Type</label><select id="new-type"><option value="T">Theory</option><option value="P">Practical / Lab</option></select></div>
+        <div><label>Min Attendance %</label><input type="number" id="new-min" value="75" min="0" max="100" /></div>
+      </div>
+      <div class="cols3">
+        <div><label>Total Classes Held</label><input type="number" id="new-total" placeholder="e.g. 34" min="0" /></div>
+        <div><label>Classes Attended</label><input type="number" id="new-attended" placeholder="e.g. 29" min="0" /></div>
+        <div style="display:flex;align-items:flex-end"><button class="btn btn-primary" style="width:100%" onclick="addSubject()">+ Add</button></div>
+      </div>
+    </div>
+    <div class="section-label">Added Subjects</div>
+    <div class="subj-list" id="subj-list"><div class="empty-state">No subjects added yet.</div></div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="goStep(1)">Next: Timetable →</button></div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="panel" id="panel-1">
+    <div class="panel-title">Timetable Setup</div>
+    <div class="panel-sub">// hours each subject has on each day order</div>
+    <div class="card" style="margin-bottom:8px">
+      <div class="cols2">
+        <div><label>Number of Day Orders</label>
+          <select id="day-count" onchange="buildTT()">
+            <option value="3">3</option><option value="5" selected>5</option><option value="6">6</option>
+          </select>
+        </div>
+        <div><label>Skip Weekends?</label>
+          <select id="skip-weekends">
+            <option value="yes" selected>Yes (Sat &amp; Sun off)</option>
+            <option value="no">No</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="tt-container"><div class="empty-state">Add subjects first.</div></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" onclick="goStep(0)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(2)">Next: Day Order Calendar →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="panel" id="panel-2">
+    <div class="panel-title">Day Order Calendar</div>
+    <div class="panel-sub">// give me the starting order + holidays, I'll fill the rest</div>
+    <div class="card">
+      <div class="card-title">Auto-fill Setup</div>
+      <div class="setup-grid">
+        <div class="big-num-wrap">
+          <div class="big-num-label">Day Order<br>on the 1st</div>
+          <input type="number" id="first-order" class="big-num-input" min="1" max="6" placeholder="?" />
+        </div>
+        <div class="hol-section">
+          <label>Holidays this month (no-class days)</label>
+          <div class="hol-row">
+            <input type="number" id="hol-date" placeholder="e.g. 15" min="1" max="31" />
+            <button class="btn btn-ghost btn-sm" onclick="addHoliday()">+ Add</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearHols()">Clear all</button>
+          </div>
+          <div class="hchips" id="hchips"><span style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace">none marked</span></div>
+        </div>
+      </div>
+      <button class="autofill-btn" onclick="runAutoFill()">✦ Auto-fill Day Orders for this Month</button>
+      <div class="autofill-status" id="af-status"></div>
+    </div>
+    <div class="card">
+      <div class="cal-month-nav">
+        <button class="cal-nav-btn" onclick="chMonth(0,-1)">‹</button>
+        <h3 id="lbl-order"></h3>
+        <button class="cal-nav-btn" onclick="chMonth(0,1)">›</button>
+      </div>
+      <div class="tip">Tap any date to manually override. Type number + Enter. Enter 0 = mark as holiday.</div>
+      <div class="cal-grid-wrap"><div class="cal-grid" id="cal-order"></div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" onclick="goStep(1)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(3)">Next: Mark Attendance →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="panel" id="panel-3">
+    <div class="panel-title">Planned Attendance</div>
+    <div class="panel-sub">// tap days you plan to attend — blue = going (optional: used as baseline)</div>
+    <div class="card">
+      <div class="cal-month-nav">
+        <button class="cal-nav-btn" onclick="chMonth(1,-1)">‹</button>
+        <h3 id="lbl-att"></h3>
+        <button class="cal-nav-btn" onclick="chMonth(1,1)">›</button>
+      </div>
+      <div class="btn-row" style="margin-top:0;margin-bottom:12px">
+        <button class="btn btn-ghost btn-sm" onclick="selAll()">Select All</button>
+        <button class="btn btn-ghost btn-sm" onclick="clrAll()">Clear All</button>
+      </div>
+      <div class="cal-grid-wrap"><div class="cal-grid" id="cal-att"></div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" onclick="goStep(2)">← Back</button>
+      <button class="btn btn-primary" onclick="doCompute()">Compute Optimal Plan →</button>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="panel" id="panel-4">
+    <div class="panel-title">Optimal Bunk Plan</div>
+    <div class="panel-sub">// algorithm-picked days to skip while keeping all subjects ≥ minimum</div>
+    <div id="opt-banner"></div>
+    <div class="summary-grid" id="res-summary"></div>
+    <div class="section-label">Subject Forecast</div>
+    <div class="card" style="padding:0;overflow:hidden"><table class="result-table" id="res-table"></table></div>
+    <div class="divider"></div>
+    <div class="section-label" style="margin-bottom:12px">Optimal Calendar</div>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:var(--blue-border)"></div>must attend</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--green-border)"></div>skip this ✓</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--amber-border)"></div>risky skip</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--red-border)"></div>cannot skip</div>
+    </div>
+    <div class="card">
+      <div class="cal-month-nav">
+        <button class="cal-nav-btn" onclick="chMonth(2,-1)">‹</button>
+        <h3 id="lbl-res"></h3>
+        <button class="cal-nav-btn" onclick="chMonth(2,1)">›</button>
+      </div>
+      <div class="cal-grid-wrap"><div class="cal-grid" id="cal-res"></div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" onclick="goStep(3)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(0)">Start Over</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════
+let subjects  = [];
+let timetable = {};
+let dayOrders = {};
+let holidays  = new Set();
+let attending = new Set();
+let optimalSkip = new Set(); // computed by optimizer
+
+const now = new Date();
+let vy = [now.getFullYear(), now.getFullYear(), now.getFullYear()];
+let vm = [now.getMonth(),    now.getMonth(),    now.getMonth()];
+let editKey = null;
+
+// ════════════════════════════════════════════
+//  NAV
+// ════════════════════════════════════════════
+function goStep(n) {
+  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',i===n));
+  document.querySelectorAll('.step-btn').forEach((b,i)=>{
+    b.classList.remove('active','done');
+    if(i===n) b.classList.add('active');
+    else if(i<n) b.classList.add('done');
+  });
+  if(n===1) buildTT();
+  if(n===2) { renderHchips(); drawOrderCal(); }
+  if(n===3) drawAttCal();
+  if(n===4 && optimalSkip.size > 0) drawResCal();
+}
+
+// ════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════
+const dim  = (y,m) => new Date(y,m+1,0).getDate();
+const fdow = (y,m) => new Date(y,m,1).getDay();
+const dk   = (y,m,d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+const isWE = (y,m,d) => { const w=new Date(y,m,d).getDay(); return w===0||w===6; };
+const skipWE = () => document.getElementById('skip-weekends').value==='yes';
+const nDays  = () => parseInt(document.getElementById('day-count').value)||5;
+
+function isOff(y,m,d) {
+  return holidays.has(dk(y,m,d)) || (skipWE() && isWE(y,m,d));
+}
+
+function margin(att,tot,minPct) {
+  const f=minPct/100;
+  if(!f) return Infinity;
+  return Math.floor((att - f*tot)/f);
+}
+
+// ════════════════════════════════════════════
+//  SUBJECTS
+// ════════════════════════════════════════════
+function addSubject() {
+  const name = document.getElementById('new-name').value.trim();
+  const type = document.getElementById('new-type').value;
+  const min  = parseInt(document.getElementById('new-min').value)||75;
+  const tot  = parseInt(document.getElementById('new-total').value)||0;
+  const att  = parseInt(document.getElementById('new-attended').value)||0;
+  if(!name)    return alert('Enter a subject name');
+  if(att>tot)  return alert('Attended cannot exceed total');
+  subjects.push({id:'s'+Date.now(), name, type, min, total:tot, attended:att});
+  document.getElementById('new-name').value='';
+  document.getElementById('new-total').value='';
+  document.getElementById('new-attended').value='';
+  renderSubjects();
+}
+function removeSubject(id){ subjects=subjects.filter(s=>s.id!==id); renderSubjects(); }
+function renderSubjects(){
+  const el=document.getElementById('subj-list');
+  if(!subjects.length){ el.innerHTML='<div class="empty-state">No subjects added yet.</div>'; return; }
+  el.innerHTML=subjects.map(s=>{
+    const pct=s.total?s.attended/s.total*100:0;
+    const skip=margin(s.attended,s.total,s.min);
+    const barC=pct>=s.min?(pct>=s.min+10?'#22c55e':'#f59e0b'):'#ef4444';
+    const pctC=pct>=s.min?(pct>=s.min+10?'var(--green)':'var(--amber)'):'var(--red)';
+    const miC =skip>5?'mi-safe':skip>0?'mi-warn':'mi-danger';
+    const valC=skip>5?'var(--green)':skip>0?'var(--amber)':'var(--red)';
+    const miTxt=skip>5?`can skip ${skip} more`:skip>0?`only ${skip} left`:skip===0?`no skips left`:`need ${Math.abs(skip)} more`;
+    return `<div class="subj-item">
+      <div class="subj-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="subj-name-display">${s.name}</span>
+          <span class="subj-type-badge badge-${s.type}">${s.type==='T'?'Theory':'Lab'}</span>
+        </div>
+        <button class="remove-btn" onclick="removeSubject('${s.id}')">×</button>
+      </div>
+      <div class="cols4">
+        <div><div class="stat-num-label">Total</div><div class="stat-num-val">${s.total}</div></div>
+        <div><div class="stat-num-label">Attended</div><div class="stat-num-val" style="color:var(--green)">${s.attended}</div></div>
+        <div><div class="stat-num-label">Absent</div><div class="stat-num-val" style="color:var(--red)">${s.total-s.attended}</div></div>
+        <div><div class="stat-num-label">Current %</div><div class="stat-num-val" style="color:${pctC}">${pct.toFixed(1)}%</div></div>
+      </div>
+      <div class="margin-bar-wrap"><div class="margin-bar" style="width:${Math.min(100,pct).toFixed(1)}%;background:${barC}"></div></div>
+      <div class="subj-stats"><span>Min: ${s.min}%</span><span style="color:${pctC};font-weight:700">${pct.toFixed(1)}%</span></div>
+      <div class="margin-info ${miC}" style="margin-top:8px">
+        <span style="color:var(--muted)">${skip>=0?'skip margin':'deficit'}</span>
+        <span style="font-size:14px;font-weight:700;color:${valC}">${Math.abs(skip)} <span style="font-size:10px;font-weight:400;color:var(--muted)">classes — ${miTxt}</span></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════
+//  TIMETABLE
+// ════════════════════════════════════════════
+function buildTT(){
+  const n=nDays();
+  for(let d=1;d<=n;d++) if(!timetable[d]) timetable[d]={};
+  const el=document.getElementById('tt-container');
+  if(!subjects.length){ el.innerHTML='<div class="empty-state">Add subjects first.</div>'; return; }
+  let html='<div class="tt-simple">';
+  for(let d=1;d<=n;d++){
+    html+=`<div class="tt-day-row"><div class="tt-day-heading">Day Order ${d}</div>`;
+    subjects.forEach(s=>{
+      const h=(timetable[d]&&timetable[d][s.id])||0;
+      html+=`<div class="tt-subj-row">
+        <span class="tt-subj-name">${s.name} <span style="font-size:10px;color:var(--muted)">${s.type}</span></span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="number" class="tt-hrs-input" min="0" max="8" value="${h}"
+            oninput="setHrs(${d},'${s.id}',this.value)" />
+          <span style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace">hrs</span>
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+  el.innerHTML=html;
+}
+function setHrs(day,sid,val){
+  if(!timetable[day]) timetable[day]={};
+  const n=parseInt(val)||0;
+  if(n<=0) delete timetable[day][sid]; else timetable[day][sid]=n;
+}
+
+// ════════════════════════════════════════════
+//  HOLIDAYS
+// ════════════════════════════════════════════
+function addHoliday(){
+  const y=vy[0],m=vm[0];
+  const d=parseInt(document.getElementById('hol-date').value);
+  if(!d||d<1||d>dim(y,m)) return alert('Enter a valid date for this month');
+  holidays.add(dk(y,m,d));
+  document.getElementById('hol-date').value='';
+  renderHchips();
+}
+function removeHol(key){ holidays.delete(key); renderHchips(); drawOrderCal(); }
+function clearHols(){
+  const y=vy[0],m=vm[0];
+  for(let d=1;d<=dim(y,m);d++) holidays.delete(dk(y,m,d));
+  renderHchips();
+  drawOrderCal();
+}
+function renderHchips(){
+  const y=vy[0],m=vm[0];
+  const el=document.getElementById('hchips');
+  if(!el) return;
+  const chips=[];
+  for(let d=1;d<=dim(y,m);d++){ const k=dk(y,m,d); if(holidays.has(k)) chips.push({k,d}); }
+  if(!chips.length){ el.innerHTML='<span style="font-size:10px;color:var(--muted);font-family:\'DM Mono\',monospace">none marked</span>'; return; }
+  el.innerHTML=chips.map(c=>`<div class="hchip">${c.d}<button class="hchip-x" onclick="removeHol('${c.k}')">×</button></div>`).join('');
+}
+
+// ════════════════════════════════════════════
+//  AUTO-FILL
+// ════════════════════════════════════════════
+function runAutoFill(){
+  const y=vy[0], m=vm[0];
+  const n=nDays();
+  const firstOrder=parseInt(document.getElementById('first-order').value);
+  if(!firstOrder || firstOrder<1 || firstOrder>n){
+    alert(`Please enter the day order for the 1st (a number from 1 to ${n})`);
+    return;
+  }
+  for(let d=1;d<=dim(y,m);d++) delete dayOrders[dk(y,m,d)];
+  let cur = firstOrder;
+  for(let d=1; d<=dim(y,m); d++){
+    if(isOff(y,m,d)) continue;
+    dayOrders[dk(y,m,d)] = cur;
+    cur = (cur % n) + 1;
+  }
+  let filled=0;
+  for(let d=1;d<=dim(y,m);d++) if(dayOrders[dk(y,m,d)]) filled++;
+  const statusEl=document.getElementById('af-status');
+  statusEl.textContent=`✓ Filled ${filled} working days for ${new Date(y,m).toLocaleString('default',{month:'long',year:'numeric'})}`;
+  statusEl.style.color='var(--green)';
+  drawOrderCal();
+}
+
+// ════════════════════════════════════════════
+//  CALENDAR BASE
+// ════════════════════════════════════════════
+function calBase(containerId,y,m,cellFn){
+  const el=document.getElementById(containerId);
+  if(!el) return;
+  const days=dim(y,m);
+  let first=(fdow(y,m)+6)%7;
+  let html=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="cal-head">${d}</div>`).join('');
+  for(let i=0;i<first;i++) html+='<div class="cal-cell empty"></div>';
+  for(let d=1;d<=days;d++) html+=cellFn(y,m,d);
+  const rem=(7-((first+days)%7))%7;
+  for(let i=0;i<rem;i++) html+='<div class="cal-cell empty"></div>';
+  el.innerHTML=html;
+  if(containerId==='cal-order') attachEdits();
+}
+
+// ════════════════════════════════════════════
+//  ORDER CALENDAR
+// ════════════════════════════════════════════
+function drawOrderCal(){
+  const y=vy[0],m=vm[0];
+  document.getElementById('lbl-order').textContent=
+    new Date(y,m).toLocaleString('default',{month:'long',year:'numeric'});
+  calBase('cal-order',y,m,(y,m,d)=>{
+    const key=dk(y,m,d);
+    const wknd=skipWE()&&isWE(y,m,d);
+    const hol=holidays.has(key);
+    const ord=dayOrders[key];
+    const editing=editKey===key;
+    if(wknd) return `<div class="cal-cell weekend"><div class="cdate">${d}</div></div>`;
+    if(hol)  return `<div class="cal-cell is-hol"><div class="cdate">${d}</div><div class="csub">holiday</div></div>`;
+    return `<div class="cal-cell clickable ${ord?'has-order':''}" data-key="${key}">
+      <div class="cdate">${d}</div>
+      ${editing
+        ? `<div class="order-overlay" onclick="event.stopPropagation()">
+             <input id="ov-inp" type="number" min="0" max="${nDays()}" autocomplete="off"
+               value="${ord||''}" placeholder="?" />
+             <div class="ov-hint">Enter = save<br>0 = holiday · Esc = cancel</div>
+           </div>`
+        : (ord?`<div class="big-order">D${ord}</div>`:`<div class="csub">tap to set</div>`)
+      }
+    </div>`;
+  });
+}
+
+function attachEdits(){
+  document.querySelectorAll('#cal-order .cal-cell.clickable').forEach(cell=>{
+    cell.addEventListener('click',function(e){
+      if(e.target.closest('.order-overlay')) return;
+      const key=this.dataset.key;
+      if(editKey===key){ editKey=null; drawOrderCal(); return; }
+      editKey=key;
+      drawOrderCal();
+    });
+  });
+  if(editKey){
+    const inp=document.getElementById('ov-inp');
+    if(inp){
+      inp.focus();
+      inp.select();
+      inp.addEventListener('keydown',function(e){
+        if(e.key==='Escape'){ editKey=null; drawOrderCal(); e.preventDefault(); return; }
+        if(e.key==='Enter'||e.key==='Tab'){
+          const v=parseInt(this.value);
+          const n=nDays();
+          if(v===0)          { holidays.add(editKey); delete dayOrders[editKey]; }
+          else if(v>=1&&v<=n){ holidays.delete(editKey); dayOrders[editKey]=v; }
+          editKey=null;
+          renderHchips();
+          drawOrderCal();
+          e.preventDefault();
+        }
+      });
+    }
+  }
+}
+
+// ════════════════════════════════════════════
+//  ATTENDANCE CALENDAR
+// ════════════════════════════════════════════
+function drawAttCal(){
+  const y=vy[1],m=vm[1];
+  document.getElementById('lbl-att').textContent=
+    new Date(y,m).toLocaleString('default',{month:'long',year:'numeric'});
+  calBase('cal-att',y,m,(y,m,d)=>{
+    const key=dk(y,m,d);
+    const wknd=skipWE()&&isWE(y,m,d);
+    const hol=holidays.has(key);
+    const ord=dayOrders[key];
+    const att=attending.has(key);
+    if(wknd) return `<div class="cal-cell weekend"><div class="cdate">${d}</div></div>`;
+    if(hol)  return `<div class="cal-cell is-hol"><div class="cdate">${d}</div><div class="csub">holiday</div></div>`;
+    if(!ord) return `<div class="cal-cell" style="opacity:.3"><div class="cdate">${d}</div><div class="csub">no order</div></div>`;
+    return `<div class="cal-cell clickable ${att?'attending':''}" onclick="togAtt('${key}')">
+      <div class="cdate">${d}</div>
+      <div class="csub">D${ord}</div>
+      <span class="cbadge" style="color:${att?'var(--blue)':'var(--muted)'}">${att?'✓ going':'tap'}</span>
+    </div>`;
+  });
+}
+function togAtt(key){ if(!dayOrders[key]) return; attending.has(key)?attending.delete(key):attending.add(key); drawAttCal(); }
+function selAll(){ Object.keys(dayOrders).forEach(k=>attending.add(k)); drawAttCal(); }
+function clrAll(){ attending.clear(); drawAttCal(); }
+function chMonth(idx,delta){
+  vm[idx]+=delta;
+  if(vm[idx]>11){ vm[idx]=0; vy[idx]++; }
+  if(vm[idx]<0) { vm[idx]=11; vy[idx]--; }
+  editKey=null;
+  if(idx===0){ renderHchips(); drawOrderCal(); }
+  if(idx===1) drawAttCal();
+  if(idx===2) drawResCal();
+}
+
+// ════════════════════════════════════════════
+//  OPTIMIZER — greedy skip maximizer
+//
+//  Strategy:
+//  1. Start with: attend ALL working days.
+//  2. Score each day by "how many total hours it contributes across all subjects".
+//     Lower-hour days are cheaper to skip.
+//  3. Sort candidate days by score ascending (cheapest first).
+//  4. Greedily try to skip each day: simulate removing it from attended set,
+//     check if ALL subjects still meet their minimum. If yes, mark it as skip.
+//  5. Result: maximum skips while every subject stays ≥ min%.
+// ════════════════════════════════════════════
+function runOptimizer() {
+  const workingDays = Object.keys(dayOrders).filter(k => !holidays.has(k));
+
+  // Build per-day total class hours (across all subjects)
+  function dayHours(key) {
+    const ord = dayOrders[key];
+    if (!ord) return 0;
+    return subjects.reduce((sum, s) => sum + ((timetable[ord] && timetable[ord][s.id]) || 0), 0);
+  }
+
+  // Simulate: given a set of attended days, compute projected % for each subject
+  function simulate(attendSet) {
+    return subjects.map(s => {
+      let pAtt = s.attended, pTot = s.total;
+      workingDays.forEach(key => {
+        const ord = dayOrders[key];
+        const h = (timetable[ord] && timetable[ord][s.id]) || 0;
+        pTot += h;
+        if (attendSet.has(key)) pAtt += h;
+      });
+      return { s, pPct: pTot > 0 ? pAtt / pTot : (s.total > 0 ? s.attended / s.total : 0) };
+    });
+  }
+
+  function allPass(attendSet) {
+    return simulate(attendSet).every(({ s, pPct }) => pPct * 100 >= s.min);
+  }
+
+  // Start attending all working days
+  const attendSet = new Set(workingDays);
+
+  // Score each day — sort by hours ascending (skip low-value days first)
+  // Tie-break: days with more subjects at risk later = skip low-risk days first
+  const candidates = workingDays
+    .map(key => ({ key, hrs: dayHours(key) }))
+    .sort((a, b) => a.hrs - b.hrs);
+
+  const skipped = new Set();
+
+  for (const { key } of candidates) {
+    attendSet.delete(key);
+    if (allPass(attendSet)) {
+      skipped.add(key);
+    } else {
+      attendSet.add(key); // can't skip this one
+    }
+  }
+
+  return { skipped, attendSet, simResult: simulate(attendSet) };
+}
+
+// ════════════════════════════════════════════
+//  COMPUTE + RESULTS
+// ════════════════════════════════════════════
+function doCompute(){
+  const { skipped, attendSet, simResult } = runOptimizer();
+  optimalSkip = skipped;
+
+  const workingDays = Object.keys(dayOrders).filter(k => !holidays.has(k));
+  const going = workingDays.length - skipped.size;
+  const bunkCount = skipped.size;
+  const safe = simResult.every(({ s, pPct }) => pPct * 100 >= s.min);
+
+  // Banner
+  const bannerEl = document.getElementById('opt-banner');
+  bannerEl.innerHTML = `<div class="opt-banner">
+    <strong>✦ Optimal plan found</strong><br>
+    You can skip <strong style="color:#4ade80;font-size:16px">${bunkCount} days</strong> 
+    out of ${workingDays.length} working days 
+    while keeping all subjects above their minimum attendance.<br>
+    <span style="color:var(--muted)">Green cells = safe to skip · Red = must attend · Amber = risky (borderline)</span>
+  </div>`;
+
+  document.getElementById('res-summary').innerHTML=`
+    <div class="sum-card"><div class="sc-label">Must Attend</div><div class="sc-val" style="color:var(--red)">${going}</div><div class="sc-sub">of ${workingDays.length} days</div></div>
+    <div class="sum-card"><div class="sc-label">Can Skip</div><div class="sc-val" style="color:var(--green)">${bunkCount}</div><div class="sc-sub">safe bunks</div></div>
+    <div class="sum-card"><div class="sc-label">Status</div><div class="sc-val" style="color:${safe?'var(--green)':'var(--red)'}">${safe?'✓ Safe':'✗ Risk'}</div><div class="sc-sub">${safe?'all ≥ minimum':'some at risk'}</div></div>
+    <div class="sum-card"><div class="sc-label">Bunk Rate</div><div class="sc-val" style="color:var(--accent2)">${workingDays.length?(bunkCount/workingDays.length*100).toFixed(0):0}%</div><div class="sc-sub">of working days</div></div>
+  `;
+
+  let th=`<tr><th>Subject</th><th>Type</th><th>Now %</th><th>Future cls</th><th>Proj %</th><th>Buffer</th></tr>`;
+  simResult.forEach(({s, pPct})=>{
+    const futTot = workingDays.reduce((sum, key) => {
+      const ord = dayOrders[key];
+      return sum + ((timetable[ord] && timetable[ord][s.id]) || 0);
+    }, 0);
+    const np=s.total?(s.attended/s.total*100).toFixed(1):'-';
+    const pp=(pPct*100).toFixed(1);
+    const pc=pPct*100>=s.min?(pPct*100>=s.min+5?'var(--green)':'var(--amber)'):'var(--red)';
+    // buffer = extra % above minimum
+    const buf = (pPct*100 - s.min).toFixed(1);
+    const mc = buf >= 5 ? 'var(--green)' : buf >= 0 ? 'var(--amber)' : 'var(--red)';
+    th+=`<tr><td>${s.name}</td><td>${s.type==='T'?'Theory':'Lab'}</td><td>${np}%</td><td>${futTot}</td>
+      <td style="color:${pc};font-weight:700">${pp}%</td>
+      <td style="color:${mc};font-weight:700">${buf>=0?'+'+buf:buf}%</td></tr>`;
+  });
+  document.getElementById('res-table').innerHTML=th;
+
+  // Sync result calendar to the month where day orders actually live
+  // Find the earliest key in dayOrders and snap vy[2]/vm[2] to it
+  const allOrderKeys = Object.keys(dayOrders).sort();
+  if(allOrderKeys.length){
+    const first = allOrderKeys[0];
+    const parts = first.split('-');
+    vy[2] = parseInt(parts[0]);
+    vm[2] = parseInt(parts[1]) - 1;
+  }
+
+  goStep(4);
+  // goStep calls drawResCal but optimalSkip is now set — force a clean redraw after DOM settles
+  setTimeout(drawResCal, 50);
+}
+
+// ════════════════════════════════════════════
+//  RESULT CALENDAR — shows optimal skip plan
+// ════════════════════════════════════════════
+function drawResCal(){
+  const y=vy[2],m=vm[2];
+  document.getElementById('lbl-res').textContent=
+    new Date(y,m).toLocaleString('default',{month:'long',year:'numeric'});
+
+  calBase('cal-res',y,m,(y,m,d)=>{
+    const key=dk(y,m,d);
+    const wknd=skipWE()&&isWE(y,m,d);
+    const hol=holidays.has(key);
+    const ord=dayOrders[key];
+    if(wknd) return `<div class="cal-cell weekend"><div class="cdate">${d}</div></div>`;
+    if(hol)  return `<div class="cal-cell is-hol"><div class="cdate">${d}</div><div class="csub">holiday</div></div>`;
+    if(!ord) return `<div class="cal-cell" style="opacity:.2"><div class="cdate">${d}</div></div>`;
+
+    const daySubs = subjects.filter(s=>(timetable[ord]&&(timetable[ord][s.id]||0))>0);
+
+    // No classes this day order — free anyway
+    if(!daySubs.length){
+      return `<div class="cal-cell res-bunk"><div class="cdate">${d}</div><div class="csub">D${ord}</div><span class="cbadge" style="color:var(--green)">✓ free</span></div>`;
+    }
+
+    // Optimizer said skip this day
+    if(optimalSkip.has(key)){
+      const tags = daySubs.map(s=>`<span class="ctag ctag-ok">${s.name}</span>`).join('');
+      return `<div class="cal-cell res-bunk"><div class="cdate">${d}</div><div class="csub">D${ord}</div><span class="cbadge" style="color:var(--green)">✓ skip</span><div class="cal-tags">${tags}</div></div>`;
+    }
+
+    // Must attend — check why (which subjects are at risk)
+    // Simulate: what if we also skip this day from the optimal attend set?
+    const workingDays = Object.keys(dayOrders).filter(k=>!holidays.has(k));
+    const attendWithout = new Set(workingDays.filter(k=>!optimalSkip.has(k)&&k!==key));
+
+    const simWithout = subjects.map(s=>{
+      let pAtt=s.attended, pTot=s.total;
+      workingDays.forEach(k=>{
+        const o=dayOrders[k];
+        const h=(timetable[o]&&timetable[o][s.id])||0;
+        pTot+=h;
+        if(attendWithout.has(k)) pAtt+=h;
+      });
+      return { s, pPct: pTot>0?pAtt/pTot:0 };
+    });
+
+    let danger=false, risky=false;
+    const tags = daySubs.map(s=>{
+      const x = simWithout.find(x=>x.s.id===s.id);
+      const pp = x ? x.pPct*100 : 0;
+      if(pp < s.min)    { danger=true; return `<span class="ctag ctag-must">${s.name}</span>`; }
+      if(pp < s.min+2)  { risky=true;  return `<span class="ctag ctag-warn">${s.name}</span>`; }
+      return `<span class="ctag ctag-go">${s.name}</span>`;
+    }).join('');
+
+    if(danger) return `<div class="cal-cell res-must"><div class="cdate">${d}</div><div class="csub">D${ord}</div><span class="cbadge" style="color:var(--red)">✗ must go</span><div class="cal-tags">${tags}</div></div>`;
+    if(risky)  return `<div class="cal-cell res-risky"><div class="cdate">${d}</div><div class="csub">D${ord}</div><span class="cbadge" style="color:var(--amber)">⚠ risky</span><div class="cal-tags">${tags}</div></div>`;
+    return `<div class="cal-cell res-go"><div class="cdate">${d}</div><div class="csub">D${ord}</div><span class="cbadge" style="color:var(--blue)">→ attend</span><div class="cal-tags">${tags}</div></div>`;
+  });
+}
+</script>
+</body>
+</html>
